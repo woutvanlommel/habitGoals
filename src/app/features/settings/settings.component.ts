@@ -1,8 +1,10 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { GoalService } from '../../core/services/goal.service';
-import { LucideAngularModule, User, Moon, Trash2, AlertTriangle, Download, Upload } from 'lucide-angular';
+import { AppwriteService } from '../../core/services/appwrite.service';
+import { LucideAngularModule, User, Moon, Trash2, AlertTriangle, Download, Upload, LogOut, Clock, Target } from 'lucide-angular';
 
 @Component({
   selector: 'app-settings',
@@ -30,6 +32,42 @@ import { LucideAngularModule, User, Moon, Trash2, AlertTriangle, Download, Uploa
       </div>
 
       <div class="settings-group card">
+        <h3>Preferences</h3>
+        <div class="setting-item">
+          <div class="label">
+            <lucide-icon [img]="Clock" size="20"></lucide-icon>
+            <span>Focus Duration (min)</span>
+          </div>
+          <input 
+            type="number"
+            [ngModel]="settings().focusDuration || 5" 
+            (ngModelChange)="updateFocusDuration($event)"
+            class="input-field small" 
+            min="1" max="60">
+        </div>
+        <div class="setting-item">
+          <div class="label">
+            <lucide-icon [img]="Target" size="20"></lucide-icon>
+            <span>Daily Goal Target</span>
+          </div>
+          <input 
+            type="number"
+            [ngModel]="settings().dailyGoalTarget || 3" 
+            (ngModelChange)="updateDailyGoalTarget($event)"
+            class="input-field small" 
+            min="1" max="20">
+        </div>
+      </div>
+
+      <div class="settings-group card">
+        <h3>Account</h3>
+        <button class="btn-logout" (click)="logout()">
+          <lucide-icon [img]="LogOut" size="20"></lucide-icon>
+          <span>Log Out</span>
+        </button>
+      </div>
+
+      <div class="settings-group card">
         <h3>Appearance</h3>
         <div class="setting-item">
           <div class="label">
@@ -42,25 +80,6 @@ import { LucideAngularModule, User, Moon, Trash2, AlertTriangle, Download, Uploa
                    (ngModelChange)="toggleDarkMode($event)">
             <span class="slider round"></span>
           </label>
-        </div>
-      </div>
-
-      <div class="settings-group card">
-        <h3>Data Management</h3>
-        <div class="setting-item" (click)="exportData()">
-          <div class="label">
-            <lucide-icon [img]="Download" size="20"></lucide-icon>
-            <span>Export Data</span>
-          </div>
-          <button class="btn-text">Download JSON</button>
-        </div>
-        <div class="setting-item" (click)="fileInput.click()">
-          <div class="label">
-            <lucide-icon [img]="Upload" size="20"></lucide-icon>
-            <span>Import Data</span>
-          </div>
-          <button class="btn-text">Upload JSON</button>
-          <input #fileInput type="file" accept=".json" (change)="onImport($event)" hidden>
         </div>
       </div>
 
@@ -207,6 +226,25 @@ import { LucideAngularModule, User, Moon, Trash2, AlertTriangle, Download, Uploa
       gap: 8px;
     }
 
+    .btn-logout {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px;
+      background-color: #f3f4f6;
+      color: #374151;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .btn-logout:hover {
+      background-color: #e5e7eb;
+    }
+
     .full-width { width: 100%; }
 
     .version {
@@ -219,6 +257,8 @@ import { LucideAngularModule, User, Moon, Trash2, AlertTriangle, Download, Uploa
 })
 export class SettingsComponent {
   private goalService = inject(GoalService);
+  private appwrite = inject(AppwriteService);
+  private router = inject(Router);
   
   settings = this.goalService.settings;
   
@@ -228,52 +268,40 @@ export class SettingsComponent {
   AlertTriangle = AlertTriangle;
   Download = Download;
   Upload = Upload;
+  LogOut = LogOut;
+  Clock = Clock;
+  Target = Target;
+
+  async logout() {
+    try {
+      await this.appwrite.logout();
+      // Clear local state if needed, but router nav will likely reload or we should clear signals
+      this.router.navigate(['/auth']);
+    } catch (error) {
+      console.error('Logout failed', error);
+    }
+  }
 
   updateUsername(username: string) {
     this.goalService.updateSettings({ username });
+  }
+
+  updateFocusDuration(duration: number) {
+    this.goalService.updateSettings({ focusDuration: duration });
+  }
+
+  updateDailyGoalTarget(target: number) {
+    this.goalService.updateSettings({ dailyGoalTarget: target });
   }
 
   toggleDarkMode(darkMode: boolean) {
     this.goalService.updateSettings({ darkMode });
   }
 
-  exportData() {
-    const data = JSON.stringify(this.goalService.history(), null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `habit-goals-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  }
-
-  onImport(event: any) {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        try {
-          const data = JSON.parse(e.target.result);
-          if (Array.isArray(data)) {
-            if (confirm('This will overwrite your current data. Are you sure?')) {
-              this.goalService.importData(data);
-              alert('Data imported successfully!');
-            }
-          } else {
-            alert('Invalid data format.');
-          }
-        } catch (err) {
-          alert('Error parsing file.');
-        }
-      };
-      reader.readAsText(file);
-    }
-  }
-
   clearData() {
     if (confirm('Are you sure? This cannot be undone.')) {
-      this.goalService.clearData();
+      // this.goalService.clearData(); // Removed as requested
+      alert('Please delete your account to remove all data.');
     }
   }
 }

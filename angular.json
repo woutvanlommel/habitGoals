@@ -43,7 +43,8 @@
                   "maximumError": "8kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "baseHref": "https://woutvanlommel.github.io/habitGoals/"
             },
             "development": {
               "optimization": false,

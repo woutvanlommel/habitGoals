@@ -2,7 +2,8 @@ import { Component, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { GoalService } from '../../core/services/goal.service';
-import { LucideAngularModule, Flame, BookOpen } from 'lucide-angular';
+import { QuoteService } from '../../core/services/quote.service';
+import { LucideAngularModule, Flame, BookOpen, Smile, Meh, Frown, Zap, Coffee } from 'lucide-angular';
 
 @Component({
   selector: 'app-dashboard',
@@ -39,6 +40,24 @@ import { LucideAngularModule, Flame, BookOpen } from 'lucide-angular';
         </div>
       </section>
 
+      <!-- Mood History -->
+      <section class="mood-card card">
+        <h3>Mood History</h3>
+        <div class="mood-row">
+          <div *ngFor="let day of moodHistory()" class="mood-day">
+            <div class="mood-icon" [ngClass]="day.mood || 'none'">
+              <lucide-icon *ngIf="day.mood === 'happy'" [img]="Smile" size="20"></lucide-icon>
+              <lucide-icon *ngIf="day.mood === 'neutral'" [img]="Meh" size="20"></lucide-icon>
+              <lucide-icon *ngIf="day.mood === 'sad'" [img]="Frown" size="20"></lucide-icon>
+              <lucide-icon *ngIf="day.mood === 'energetic'" [img]="Zap" size="20"></lucide-icon>
+              <lucide-icon *ngIf="day.mood === 'tired'" [img]="Coffee" size="20"></lucide-icon>
+              <div *ngIf="!day.mood" class="mood-placeholder"></div>
+            </div>
+            <span class="mood-label">{{ day.dayName }}</span>
+          </div>
+        </div>
+      </section>
+
       <section class="progress-card card">
         <div class="progress-circle">
           <svg viewBox="0 0 36 36" class="circular-chart">
@@ -58,7 +77,7 @@ import { LucideAngularModule, Flame, BookOpen } from 'lucide-angular';
         </div>
         <div class="progress-text">
           <h3>Daily Goals</h3>
-          <p *ngIf="totalGoals() === 0">No goals set for today yet.</p>
+          <p *ngIf="totalGoals() === 0">No goals set. Target: {{ settings().dailyGoalTarget || 3 }}</p>
           <p *ngIf="totalGoals() > 0">{{ completedGoals() }} of {{ totalGoals() }} completed</p>
         </div>
       </section>
@@ -194,6 +213,52 @@ import { LucideAngularModule, Flame, BookOpen } from 'lucide-angular';
       color: white;
     }
 
+    /* Mood History */
+    .mood-card {
+      margin-bottom: var(--spacing-md);
+    }
+    .mood-card h3 {
+      margin: 0 0 1rem;
+      font-size: 1rem;
+      color: var(--color-text-muted);
+    }
+    .mood-row {
+      display: flex;
+      justify-content: space-between;
+    }
+    .mood-day {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .mood-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-bg-secondary);
+      color: var(--color-text-muted);
+    }
+    .mood-icon.happy { color: #22c55e; background: #dcfce7; }
+    .mood-icon.neutral { color: #64748b; background: #f1f5f9; }
+    .mood-icon.sad { color: #3b82f6; background: #dbeafe; }
+    .mood-icon.energetic { color: #eab308; background: #fef9c3; }
+    .mood-icon.tired { color: #a855f7; background: #f3e8ff; }
+    
+    .mood-placeholder {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #cbd5e1;
+    }
+    .mood-label {
+      font-size: 0.7rem;
+      color: var(--color-text-muted);
+    }
+
     .progress-card {
       display: flex;
       align-items: center;
@@ -305,6 +370,11 @@ export class DashboardComponent {
   
   readonly Flame = Flame;
   readonly BookOpen = BookOpen;
+  readonly Smile = Smile;
+  readonly Meh = Meh;
+  readonly Frown = Frown;
+  readonly Zap = Zap;
+  readonly Coffee = Coffee;
 
   settings = this.goalService.settings;
   todayEntry = this.goalService.today;
@@ -314,17 +384,10 @@ export class DashboardComponent {
   todayDate = new Date();
 
   totalEntries = computed(() => this.goalService.history().length);
+  moodHistory = this.goalService.moodHistory;
 
-  quotes = [
-    { text: "The journey of a thousand miles begins with a single step.", author: "Lao Tzu" },
-    { text: "What you do today can improve all your tomorrows.", author: "Ralph Marston" },
-    { text: "Happiness is not something ready made. It comes from your own actions.", author: "Dalai Lama" },
-    { text: "Be the change that you wish to see in the world.", author: "Mahatma Gandhi" },
-    { text: "It always seems impossible until it's done.", author: "Nelson Mandela" },
-    { text: "Do not wait; the time will never be 'just right'.", author: "Napoleon Hill" }
-  ];
-  
-  currentQuote = this.quotes[Math.floor(Math.random() * this.quotes.length)];
+  private quoteService = inject(QuoteService);
+  currentQuote = this.quoteService.getDailyQuote();
 
   timeOfDay = computed(() => {
     const hour = new Date().getHours();

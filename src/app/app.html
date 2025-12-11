@@ -1,4 +1,11 @@
-<main>
-  <router-outlet></router-outlet>
-</main>
-<app-navigation></app-navigation>
+<div *ngIf="!initialized()" class="loading-screen">
+  <div class="spinner"></div>
+  <p>Loading your journey...</p>
+</div>
+
+<ng-container *ngIf="initialized()">
+  <main>
+    <router-outlet></router-outlet>
+  </main>
+  <app-navigation *ngIf="showNavigation()"></app-navigation>
+</ng-container>

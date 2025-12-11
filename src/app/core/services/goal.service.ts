@@ -1,12 +1,12 @@
-import { Injectable, signal, computed, effect } from '@angular/core';
+import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import { DailyEntry, Goal, UserSettings } from '../models/goal.model';
+import { AppwriteService } from './appwrite.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class GoalService {
-  private readonly STORAGE_KEY = 'habit_goals_data';
-  private readonly SETTINGS_KEY = 'habit_goals_settings';
+  private appwrite = inject(AppwriteService);
 
   // State
   private entries = signal<DailyEntry[]>([]);
@@ -15,6 +15,8 @@ export class GoalService {
     username: 'Friend',
     darkMode: false
   });
+
+  initialized = signal(false);
 
   // Computed
   today = computed(() => {
@@ -105,16 +107,30 @@ export class GoalService {
     return days;
   });
 
+  moodHistory = computed(() => {
+    const days = [];
+    const today = new Date();
+    // Get last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const entry = this.entries().find(e => e.date === dateStr);
+      
+      days.push({
+        date: d,
+        dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        mood: entry?.mood || null
+      });
+    }
+    return days;
+  });
+
   constructor() {
-    this.loadData();
+    this.init();
 
-    // Auto-save effects
+    // Effect for dark mode only (data sync is handled manually now)
     effect(() => {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.entries()));
-    });
-
-    effect(() => {
-      localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(this.settings()));
       if (this.settings().darkMode) {
         document.body.classList.add('dark');
       } else {
@@ -123,15 +139,47 @@ export class GoalService {
     });
   }
 
-  private loadData() {
-    const data = localStorage.getItem(this.STORAGE_KEY);
-    if (data) {
-      this.entries.set(JSON.parse(data));
+  async init() {
+    try {
+      const user = await this.appwrite.getUser();
+      if (user) {
+        await this.loadData();
+      } else {
+        // Not logged in, do nothing (AuthGuard will handle redirect)
+        // Or clear data
+        this.entries.set([]);
+      }
+    } catch (error) {
+      console.error('Failed to initialize Appwrite:', error);
+    } finally {
+      this.initialized.set(true);
     }
+  }
 
-    const settings = localStorage.getItem(this.SETTINGS_KEY);
+  private async loadData() {
+    const [entries, settings] = await Promise.all([
+      this.appwrite.getEntries(),
+      this.appwrite.getSettings()
+    ]);
+    
+    this.entries.set(entries);
+    
     if (settings) {
-      this.settings.set(JSON.parse(settings));
+      this.settings.set(settings);
+    } else {
+      // If no settings found, try to get name from account and create default settings
+      const user = await this.appwrite.getUser();
+      if (user) {
+        const newSettings: UserSettings = {
+          username: user.name,
+          darkMode: false,
+          focusDuration: 5,
+          dailyGoalTarget: 3
+        };
+        this.settings.set(newSettings);
+        // Save to DB so it exists next time
+        await this.appwrite.saveSettings(newSettings);
+      }
     }
   }
 
@@ -141,13 +189,14 @@ export class GoalService {
     this.setGoals(todayStr, goalsText);
   }
 
-  setGoals(date: string, goalsText: string[]) {
+  async setGoals(date: string, goalsText: string[]) {
     const newGoals: Goal[] = goalsText.map(text => ({
       id: crypto.randomUUID(),
       text,
       completed: false
     }));
 
+    // Optimistic update
     this.entries.update(entries => {
       const existingIndex = entries.findIndex(e => e.date === date);
       if (existingIndex >= 0) {
@@ -158,10 +207,18 @@ export class GoalService {
         return [...entries, { date, goals: newGoals }];
       }
     });
+
+    // Sync
+    const entry = this.entries().find(e => e.date === date);
+    if (entry) {
+      await this.appwrite.saveEntry(entry);
+    }
   }
 
-  toggleGoal(goalId: string, date?: string) {
+  async toggleGoal(goalId: string, date?: string) {
     const targetDate = date || new Date().toISOString().split('T')[0];
+    
+    // Optimistic update
     this.entries.update(entries => {
       return entries.map(entry => {
         if (entry.date === targetDate) {
@@ -175,10 +232,18 @@ export class GoalService {
         return entry;
       });
     });
+
+    // Sync
+    const entry = this.entries().find(e => e.date === targetDate);
+    if (entry) {
+      await this.appwrite.saveEntry(entry);
+    }
   }
 
-  saveReflection(reflection: string, mood?: 'happy' | 'neutral' | 'sad' | 'energetic' | 'tired', image?: string, date?: string) {
+  async saveReflection(reflection: string, mood?: 'happy' | 'neutral' | 'sad' | 'energetic' | 'tired', image?: string, date?: string) {
     const targetDate = date || new Date().toISOString().split('T')[0];
+    
+    // Optimistic update
     this.entries.update(entries => {
       return entries.map(entry => {
         if (entry.date === targetDate) {
@@ -187,26 +252,42 @@ export class GoalService {
         return entry;
       });
     });
+
+    // Sync
+    const entry = this.entries().find(e => e.date === targetDate);
+    if (entry) {
+      await this.appwrite.saveEntry(entry);
+    }
   }
 
-  deleteEntry(date: string) {
+  async deleteEntry(date: string) {
+    // Optimistic update
     this.entries.update(entries => entries.filter(e => e.date !== date));
+    
+    // Sync
+    await this.appwrite.deleteEntry(date);
   }
 
   getEntry(date: string) {
     return this.entries().find(e => e.date === date);
   }
 
-  updateSettings(newSettings: Partial<UserSettings>) {
+  async updateSettings(newSettings: Partial<UserSettings>) {
+    // Optimistic update
     this.settings.update(s => ({ ...s, ...newSettings }));
+    
+    // Sync
+    await this.appwrite.saveSettings(this.settings());
   }
 
   importData(data: DailyEntry[]) {
+    // Not implemented for Appwrite yet (would require batch create)
+    console.warn('Import not fully supported with Appwrite yet');
     this.entries.set(data);
   }
 
   clearData() {
     this.entries.set([]);
-    localStorage.removeItem(this.STORAGE_KEY);
+    // Would need to delete all docs in Appwrite
   }
 }

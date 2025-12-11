@@ -15,4 +15,6 @@ export interface DailyEntry {
 export interface UserSettings {
   username: string;
   darkMode: boolean;
+  focusDuration?: number;
+  dailyGoalTarget?: number;
 }
