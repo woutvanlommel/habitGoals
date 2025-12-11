@@ -1,1 +1,117 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  /* Palette - Zen/Calm */
+  --color-bg: #fdfbf7; /* Warm off-white */
+  --color-surface: #ffffff;
+  --color-primary: #6b9080; /* Sage green */
+  --color-primary-dark: #4a6b5d;
+  --color-secondary: #eaf4f4; /* Light mint */
+  --color-accent: #f6bd60; /* Soft warm yellow/orange */
+  --color-text: #2b2d42; /* Dark slate */
+  --color-text-muted: #8d99ae;
+  --color-border: #e5e5e5;
+  --color-danger: #ef233c;
+
+  /* Spacing & Layout */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+
+  /* UI Elements */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body.dark {
+  --color-bg: #1a1b1e; /* Dark charcoal */
+  --color-surface: #25262b; /* Slightly lighter dark */
+  --color-primary: #84a98c; /* Lighter sage for contrast */
+  --color-primary-dark: #52796f;
+  --color-secondary: #2c2e33; /* Dark grey for secondary */
+  --color-accent: #ffc300; /* Bright yellow/gold */
+  --color-text: #e1e1e6; /* Off-white text */
+  --color-text-muted: #a0a0a0;
+  --color-border: #373a40;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 80px; /* Space for bottom nav */
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, textarea {
+  font-family: inherit;
+}
+
+/* Utility classes for layout */
+.container {
+  padding: var(--spacing-md);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+
+.btn:active {
+  opacity: 0.8;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--color-text-muted);
+}
+
+.text-center { text-align: center; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-sm { gap: var(--spacing-sm); }
+.gap-md { gap: var(--spacing-md); }
